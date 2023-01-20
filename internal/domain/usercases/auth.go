@@ -39,7 +39,7 @@ func(a *Auth) generateToken(login string, ttl time.Duration) (string, error) {
 	token := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
 	signedjwt, err := token.SignedString([]byte(a.cfg.Srv.SecretSignature))
 	if err != nil{
-		return "", fmt.Errorf("generate token failed: %w", err)
+		return "", err
 	}
 	return signedjwt, nil
 }
@@ -54,7 +54,7 @@ func (a *Auth) verifyToken(tokenString string) (string, error){
 
 	token , err := jwt.ParseWithClaims(tokenString, &claims, validateSign)
 	if !token.Valid {
-		return "", fmt.Errorf("parse token unexpected error: %w", err)
+		return "", err
 	} else if errors.Is(err, jwt.ErrTokenMalformed) {
 		return "", models.TokenInvalidErr
 	} else if errors.Is(err, jwt.ErrTokenExpired) || errors.Is(err, jwt.ErrTokenNotValidYet) {

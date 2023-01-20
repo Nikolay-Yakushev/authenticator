@@ -12,7 +12,7 @@ import (
 )
 
 type App struct {
-	log           *zap.Logger
+	log          *zap.Logger
 	description string
 	cfg         *cfg.Config
 	closeables  []ports.Closeable
@@ -66,7 +66,7 @@ func (a *App) Stop(ctx context.Context) error {
 				if err != nil{
 					// TODO Does this threadsafe? Would i get correct `entity`?
 					a.log.Sugar().Error(
-						"Failed tщ stop component %s", entity.GetDescription())
+						"Failed to stop component %s", entity.GetDescription())
 					continue
 				}
 				a.log.Sugar().Info("Successefully stopped component=%s", entity.GetDescription())
