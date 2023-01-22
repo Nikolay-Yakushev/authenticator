@@ -27,8 +27,8 @@ func(a *Adapter) Login(ctx *gin.Context) {
 	}
 	accessToken, refreshToken, err := a.auth.Login(ctx, login, password)
 	if err != nil {
-		// TODO add errors detection
-		ctx.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		a.BindError(ctx, err)
+		return
 	}
 	ctx.SetCookie(accessHeader, accessToken, 0, "", "auth", true, true)
 	ctx.SetCookie(refreshHeader, refreshToken, 0, "", "auth", true, true)
@@ -46,8 +46,7 @@ func(a *Adapter) Logout(ctx *gin.Context) {
 	}
 	ok, err := a.auth.Logout(ctx, login, password)
 	if err != nil {
-		// TODO add errors detection
-		ctx.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		a.BindError(ctx, err)
 		return
 	}
 
@@ -66,6 +65,7 @@ func(a *Adapter) Verify(ctx *gin.Context) {
 
 	user, err := a.auth.Verify(ctx, access, refresh)
 	if err != nil {
+		a.BindError(ctx, err)
 		return
 	}
 	ctx.SetCookie(accessHeader, user.AccessToken, 0, "", "auth", true, true)
@@ -90,8 +90,8 @@ func(a *Adapter) Singup(ctx *gin.Context) {
 
 	u, err := a.auth.Singup(ctx, login, password, "")
 	if err != nil {
-		// TODO add errors detection 
-		ctx.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		a.BindError(ctx, err)
+		return
 	}
 	ctx.JSON(http.StatusOK, UserProjection{
 		Login: u.Login,

@@ -2,11 +2,8 @@ package memory
 
 import (
 	"context"
-
 	"github.com/google/uuid"
-
 	models "github.com/Nikolay-Yakushev/mango/internal/domain"
-
 	"github.com/Nikolay-Yakushev/mango/internal/domain/entities/users"
 )
 func (imem *InMemoryStorage)GetBlocked()map[string]users.User{
