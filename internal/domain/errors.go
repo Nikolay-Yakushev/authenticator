@@ -9,3 +9,4 @@ var (
 	NotFoundErr = errors.New("not found")
 	ConflictErr =  errors.New("already exist")
 )
+

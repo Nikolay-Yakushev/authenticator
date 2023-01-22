@@ -9,11 +9,18 @@ import (
 
 	"github.com/Nikolay-Yakushev/mango/internal/domain/entities/users"
 )
+func (imem *InMemoryStorage)GetBlocked()map[string]users.User{
+	return imem.block
+}
+
+func (imem *InMemoryStorage)GetActive()map[string]users.User{
+	return imem.block
+}
 
 func (imem *InMemoryStorage) GetUser(
-	ctx context.Context, login string) (users.User, error) {
+	ctx context.Context, login string, userMap map[string]users.User) (users.User, error) {
 	
-	user, ok := imem.storage[login]
+	user, ok := userMap[login]
 	if !ok {
 		imem.log.Sugar().Errorw("user not found", "login", login)
 		err := models.NotFoundErr
@@ -43,7 +50,7 @@ func (imem *InMemoryStorage) SetUser(
 		err := models.ConflictErr
 		return user, err
 	}
-
+	//TODO обусдить момент переопределения пользователем?
 	genId := func()uuid.UUID {
 		id := uuid.New() 
 		return id
@@ -56,12 +63,6 @@ func (imem *InMemoryStorage) SetUser(
 		Email:    email,
 	}
 
-	hash, err := u.HashPassword()
-	if err != nil{
-		imem.log.Sugar().Errorw("Failed to hash password", "reason", err)
-		return users.User{}, err
-	}
-	u.Password = hash
 
 	imem.storage[login] = u
 	return u, nil

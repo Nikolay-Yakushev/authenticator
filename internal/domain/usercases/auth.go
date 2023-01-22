@@ -22,6 +22,13 @@ type Auth struct {
 	cfg 	  *cfg.Config
 
 }
+func (a *Auth) hashPassword(password string)(string, error){
+	hash, err := bcrypt.GenerateFromPassword([]byte(password), bcrypt.DefaultCost)
+    if err != nil {
+		return "", err
+    }
+    return string(hash), nil
+}
 
 func (a *Auth) encodePassword (passwrod string) (string, error) {
 	hash, err := bcrypt.GenerateFromPassword([]byte(passwrod), bcrypt.DefaultCost)
@@ -58,7 +65,6 @@ func (a *Auth) verifyToken(tokenString string) (string, error){
 	} else if errors.Is(err, jwt.ErrTokenMalformed) {
 		return "", models.TokenInvalidErr
 	} else if errors.Is(err, jwt.ErrTokenExpired) || errors.Is(err, jwt.ErrTokenNotValidYet) {
-		// Token is either expired or not active yet
 		return "", models.TokenExpiredErr
 	}
 	return claims.Issuer, nil
@@ -68,6 +74,7 @@ func (a *Auth) verifyToken(tokenString string) (string, error){
 
 func New(logger *zap.Logger, cfg *cfg.Config) (*Auth, error) {
 	// TODO some config to parse. e.g: inmemory | redis | mongo | postgres
+	namedLogger := logger.Named("auth")
 	storage, err := memory.New(logger)
 	if err != nil {
 		logger.Sugar().Errorw("Memory start failed", "error", err)
@@ -76,13 +83,14 @@ func New(logger *zap.Logger, cfg *cfg.Config) (*Auth, error) {
 	}
 	return &Auth{
 		storage: storage,
-		log: logger,
+		log: namedLogger,
 		cfg: cfg,
 	 }, nil
 }
 
 func (a *Auth) Login(ctx context.Context, login, password string) (string, string, error)  {
-	u, err := a.storage.GetUser(ctx, login)
+	active := a.storage.GetActive()
+	u, err := a.storage.GetUser(ctx, login, active)
 	if err != nil {
 		a.log.Sugar().Errorw("Storage error", "reason", err)
 		return "", "", err
@@ -110,7 +118,7 @@ func (a *Auth) Login(ctx context.Context, login, password string) (string, strin
 }
 
 func (a *Auth) Logout(ctx context.Context, login, password string) (bool, error) { 
-	u, err := a.storage.GetUser(ctx, login)
+	u, err := a.storage.GetUser(ctx, login, a.storage.GetActive())
 	if err != nil {
 		a.log.Sugar().Errorw("Storage error", "reason", err)
 		return false, err
@@ -149,11 +157,17 @@ func (a *Auth) Verify(
 			return r, err
 		}
 	}
-	r.User, err = a.storage.GetUser(ctx, login)
+	// check user is blocked
+	_, err = a.storage.GetUser(ctx, login, a.storage.GetBlocked())
+	if err !=nil {
+		return r, err
+	}
+	
+	r.User, err = a.storage.GetUser(ctx, login, a.storage.GetActive())
 	if err != nil {
 		return r, err
 	}
-
+	
 	r.AccessToken, err = a.generateToken(login, a.cfg.Srv.AccessTokenExpired)
 	if err != nil {
 		return r, err
@@ -168,7 +182,11 @@ func (a *Auth) Verify(
 }
 
 func (a *Auth) Singup(ctx context.Context, login, password, email string) (users.User, error)  {
-	user, err := a.storage.SetUser(ctx, login, password, email)
+	pswd, err := a.hashPassword(password)
+	if err != nil{
+		return users.User{}, err
+	}
+	user, err := a.storage.SetUser(ctx, login, pswd, email)
 	if err !=nil {
 		a.log.Sugar().Errorw("Storage error", "reason", err)
 		return users.User{}, err

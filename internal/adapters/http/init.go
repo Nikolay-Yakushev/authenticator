@@ -19,12 +19,12 @@ import (
 
 type Adapter struct {
 	server      *http.Server
-	listener    net.Listener
 	log         *zap.Logger
+	cfg         *cfg.Config
+	listener    net.Listener
 	description string
 	once        sync.Once
 	auth        ports.Auth
-	cfg         *cfg.Config
 }
 
 func (a *Adapter) GetDescription() string {
@@ -37,7 +37,6 @@ func (a *Adapter) Start() error {
 	go func() {
 		err = a.server.Serve(a.listener)
 		if err != nil && !errors.Is(err, http.ErrServerClosed) {
-			// TODO Надо падать или надо выкидывать Error?
 			a.log.Sugar().Errorw("Server startup failed", "reason", err)
 		}
 	}()
@@ -65,7 +64,7 @@ func New(cfg *cfg.Config, logger *zap.Logger) (*Adapter, error) {
 	}
 
 	adap := &Adapter{
-		description: "Adapter component",
+		description: "Adapter",
 		server:      server,
 		listener:    listener,
 		log:         logger,

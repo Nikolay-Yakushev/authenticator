@@ -3,19 +3,21 @@ package application
 import (
 	"context"
 	"fmt"
-
 	"go.uber.org/zap"
-
 	cfg "github.com/Nikolay-Yakushev/mango/pkg/config"
 	httpapp "github.com/Nikolay-Yakushev/mango/internal/adapters/http"
-	ports "github.com/Nikolay-Yakushev/mango/internal/ports/driver"
 )
 
+type Closeable interface {
+	Stop(ctx context.Context)error
+	GetDescription()string
+}
+
 type App struct {
-	log          *zap.Logger
+	log         *zap.Logger
 	description string
 	cfg         *cfg.Config
-	closeables  []ports.Closeable
+	closeables  []Closeable
 }
 
 func (a *App) GetDescription() string {
@@ -23,11 +25,11 @@ func (a *App) GetDescription() string {
 }
 
 func New(logger *zap.Logger, cfg *cfg.Config) (*App, error) {
-	var closeables []ports.Closeable
-
+	var closeables []Closeable
+	namedLogger := logger.Named("mango")
 	a := &App{
-		log: logger, 
-		description: "Mango component",
+		log: namedLogger, 
+		description: "Mango",
 		cfg: cfg,
 		closeables: closeables,
 	}
@@ -46,33 +48,37 @@ func (a *App) Start() error {
 	return nil
 }
 
+type CloseResult struct {
+	Err    error
+	Entity Closeable
+}
+
 func (a *App) Stop(ctx context.Context) error {
 	defer a.log.Sync()
 
-	for _, entity :=range a.closeables{
-		errCh := make(chan error, 1)
+	for idx :=range a.closeables{
+		closeable := a.closeables[idx]
+		errCh := make(chan CloseResult, 1)
 
-		go func(){
+		go func(entity Closeable){
 			err := entity.Stop(ctx)
-			errCh <-err
-		}()
+			errCh <-CloseResult{Err: err, Entity: entity}
+
+		}(closeable)
 
 		select {
 
 			case <-ctx.Done():
 				return ctx.Err()
 
-			case err := <-errCh:
-				if err != nil{
-					// TODO Does this threadsafe? Would i get correct `entity`?
-					a.log.Sugar().Error(
-						"Failed to stop component %s", entity.GetDescription())
+			case closeRes := <-errCh:
+				if closeRes.Err != nil{
+					a.log.Sugar().Errorf("Failed to stop %s", closeRes.Entity.GetDescription())
 					continue
 				}
-				a.log.Sugar().Info("Successefully stopped component=%s", entity.GetDescription())
-				
+				a.log.Sugar().Infof("Successefully stopped `%s`", closeRes.Entity.GetDescription())
 		}
-		
+		a.log.Sugar().Info("Successefully stopped components")
 	}
 	return nil
 }
