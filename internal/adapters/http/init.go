@@ -47,7 +47,7 @@ func New(cfg *cfg.Config, logger *zap.Logger) (*Adapter, error) {
 	listener, err := net.Listen("tcp", cfg.ServerPort)
 	if err != nil {
 		logger.Sugar().Errorw("Failed to initialize adapter", "error", err)
-		return nil, fmt.Errorf("Adapater start failed: %w", err)
+		return nil, fmt.Errorf("Adapater init failed: %w", err)
 	}
 	router := gin.New()
 

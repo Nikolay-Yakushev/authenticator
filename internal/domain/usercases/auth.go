@@ -138,8 +138,6 @@ func (a *Auth) Logout(ctx context.Context, login, password string) (bool, error)
 
 func (a *Auth) Verify(
 	ctx context.Context, accessToken, refreshToken string) (users.VerifyResponse, error) {
-	//todo what is the rules of using `named` return value like: r users.VerifyResponse&
-	// is that leagal to assign values to it, considering it is just an empty struct declared as `var`?
 	var (
 		login string
 		r users.VerifyResponse
@@ -162,7 +160,7 @@ func (a *Auth) Verify(
 	if err !=nil {
 		return r, err
 	}
-	
+
 	r.User, err = a.storage.GetUser(ctx, login, a.storage.GetActive())
 	if err != nil {
 		return r, err
